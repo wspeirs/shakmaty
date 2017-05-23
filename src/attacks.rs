@@ -68,18 +68,38 @@ pub fn king_attacks(sq: Square) -> Bitboard {
 }
 
 #[inline]
-pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
+pub fn rank_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     unsafe {
         // This is safe because properly constructed squares are in bounds.
-        let mask = Bitboard(*ROOK_MASKS.get_unchecked(sq.index() as usize));
-        let range = Bitboard(*ROOK_RANGES.get_unchecked(sq.index() as usize));
-        let index = *ROOK_INDEXES.get_unchecked(sq.index() as usize) +
+        let mask = Bitboard(*RANK_MASKS.get_unchecked(sq.index() as usize));
+        let range = Bitboard(*RANK_RANGES.get_unchecked(sq.index() as usize));
+        let index = *RANK_INDEXES.get_unchecked(sq.index() as usize) +
                     occupied.extract(mask) as usize;
 
         // This is safe because a sufficient size for the attack tables was
         // hand-selected.
-        Bitboard::deposit(*ROOK_ATTACKS.get_unchecked(index) as u64, range)
+        Bitboard::deposit(*RANK_ATTACKS.get_unchecked(index) as u64, range)
     }
+}
+
+#[inline]
+pub fn file_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
+    unsafe {
+        // This is safe because properly constructed squares are in bounds.
+        let mask = Bitboard(*FILE_MASKS.get_unchecked(sq.index() as usize));
+        let range = Bitboard(*FILE_RANGES.get_unchecked(sq.index() as usize));
+        let index = *FILE_INDEXES.get_unchecked(sq.index() as usize) +
+                    occupied.extract(mask) as usize;
+
+        // This is safe because a sufficient size for the attack tables was
+        // hand-selected.
+        Bitboard::deposit(*FILE_ATTACKS.get_unchecked(index) as u64, range)
+    }
+}
+
+#[inline]
+pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
+    rank_attacks(sq, occupied) | file_attacks(sq, occupied)
 }
 
 #[inline]

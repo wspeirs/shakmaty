@@ -1442,9 +1442,8 @@ fn gen_castling_moves<P: Position>(pos: &P, king: Square, moves: &mut MoveList) 
 }
 
 fn castling_uncovers_rank_attack<P: Position>(pos: &P, rook: Square, king_to: Square) -> bool {
-    (attacks::rook_attacks(king_to, pos.board().occupied().without(rook)) &
-     pos.them() & pos.board().rooks_and_queens() &
-     Bitboard::rank(king_to.rank())).any()
+    (attacks::rank_attacks(king_to, pos.board().occupied().without(rook)) &
+     pos.them() & pos.board().rooks_and_queens()).any()
 }
 
 trait Stepper {

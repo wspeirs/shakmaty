@@ -18,7 +18,8 @@ mod bitboard;
 use square::Square;
 use bitboard::Bitboard;
 
-const ROOK_DELTAS: [i8; 4] = [8, 1, -8, -1];
+const RANK_DELTAS: [i8; 2] = [1, -1];
+const FILE_DELTAS: [i8; 2] = [8, -8];
 const BISHOP_DELTAS: [i8; 4] = [9, 7, -9, -7];
 const KING_DELTAS: [i8; 8] = [9, 8, 7, 1, -9, -8, -7, -1];
 const KNIGHT_DELTAS: [i8; 8] = [17, 15, 10, 6, -17, -15, -10, -6];
@@ -54,7 +55,8 @@ fn sliding_bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
 }
 
 fn sliding_rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
-    sliding_attacks(sq, occupied, &ROOK_DELTAS)
+    sliding_attacks(sq, occupied, &RANK_DELTAS) |
+    sliding_attacks(sq, occupied, &FILE_DELTAS)
 }
 
 fn step_attacks(sq: Square, deltas: &[i8]) -> Bitboard {
@@ -107,10 +109,15 @@ fn generate() -> io::Result<()> {
     let mut white_pawn_attacks = [Bitboard(0); 64];
     let mut black_pawn_attacks = [Bitboard(0); 64];
 
-    let mut rook_indexes = [0usize; 64];
-    let mut rook_masks = [Bitboard(0); 64];
-    let mut rook_ranges = [Bitboard(0); 64];
-    let mut rook_attacks = [0u16; 0x19000];
+    let mut rank_indexes = [0usize; 64];
+    let mut rank_masks = [Bitboard(0); 64];
+    let mut rank_ranges = [Bitboard(0); 64];
+    let mut rank_attacks = [0u16; 0x1480]; // TODO
+
+    let mut file_indexes = [0usize; 64];
+    let mut file_masks = [Bitboard(0); 64];
+    let mut file_ranges = [Bitboard(0); 64];
+    let mut file_attacks = [0u16; 0x1480]; // TODO
 
     let mut bishop_indexes = [0usize; 64];
     let mut bishop_masks = [Bitboard(0); 64];
@@ -128,8 +135,11 @@ fn generate() -> io::Result<()> {
         black_pawn_attacks[s] = step_attacks(sq, &BLACK_PAWN_DELTAS);
     }
 
-    init_magics(&mut rook_indexes, &mut rook_masks, &mut rook_ranges,
-                &mut rook_attacks, &ROOK_DELTAS);
+    init_magics(&mut rank_indexes, &mut rank_masks, &mut rank_ranges,
+                &mut rank_attacks, &RANK_DELTAS);
+
+    init_magics(&mut file_indexes, &mut file_masks, &mut file_ranges,
+                &mut file_attacks, &FILE_DELTAS);
 
     init_magics(&mut bishop_indexes, &mut bishop_masks, &mut bishop_ranges,
                 &mut bishop_attacks, &BISHOP_DELTAS);
@@ -166,10 +176,17 @@ fn generate() -> io::Result<()> {
 
     try!(write!(f, "\n"));
 
-    dump_slice(&mut f, "ROOK_INDEXES", "usize", &rook_indexes)?;
-    dump_slice(&mut f, "ROOK_MASKS", "u64", &rook_masks)?;
-    dump_slice(&mut f, "ROOK_RANGES", "u64", &rook_ranges)?;
-    dump_slice(&mut f, "ROOK_ATTACKS", "u16", &rook_attacks)?;
+    dump_slice(&mut f, "RANK_INDEXES", "usize", &rank_indexes)?;
+    dump_slice(&mut f, "RANK_MASKS", "u64", &rank_masks)?;
+    dump_slice(&mut f, "RANK_RANGES", "u64", &rank_ranges)?;
+    dump_slice(&mut f, "RANK_ATTACKS", "u16", &rank_attacks)?;
+
+    try!(write!(f, "\n"));
+
+    dump_slice(&mut f, "FILE_INDEXES", "usize", &file_indexes)?;
+    dump_slice(&mut f, "FILE_MASKS", "u64", &file_masks)?;
+    dump_slice(&mut f, "FILE_RANGES", "u64", &file_ranges)?;
+    dump_slice(&mut f, "FILE_ATTACKS", "u16", &file_attacks)?;
 
     try!(write!(f, "\n"));
 

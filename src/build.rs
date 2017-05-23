@@ -186,14 +186,14 @@ fn generate() -> io::Result<()> {
     dump_slice(&mut f, "RANK_INDEXES", "usize", &rank_indexes)?;
     dump_slice(&mut f, "RANK_MASKS", "u64", &rank_masks)?;
     dump_slice(&mut f, "RANK_RANGES", "u64", &rank_ranges)?;
-    dump_slice(&mut f, "RANK_ATTACKS", "u16", &rank_attacks)?;
+    dump_slice(&mut f, "RANK_ATTACKS", "u8", &rank_attacks)?;
 
     try!(write!(f, "\n"));
 
     dump_slice(&mut f, "FILE_INDEXES", "usize", &file_indexes)?;
     dump_slice(&mut f, "FILE_MASKS", "u64", &file_masks)?;
     dump_slice(&mut f, "FILE_RANGES", "u64", &file_ranges)?;
-    dump_slice(&mut f, "FILE_ATTACKS", "u16", &file_attacks)?;
+    dump_slice(&mut f, "FILE_ATTACKS", "u8", &file_attacks)?;
 
     try!(write!(f, "\n"));
 

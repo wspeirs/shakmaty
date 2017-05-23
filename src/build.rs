@@ -63,7 +63,7 @@ fn step_attacks(sq: Square, deltas: &[i8]) -> Bitboard {
     sliding_attacks(sq, Bitboard::all(), deltas)
 }
 
-fn init_magics(indexes: &mut[usize], masks: &mut[Bitboard], ranges: &mut[Bitboard], attacks: &mut[u16], deltas: &[i8]) {
+fn init_magics(indexes: &mut[usize], masks: &mut[Bitboard], ranges: &mut[Bitboard], attacks: &mut[u16], deltas: &[i8]) -> usize {
     for s in 0..64 {
         let sq = Square::from_index_unchecked(s);
 
@@ -85,6 +85,8 @@ fn init_magics(indexes: &mut[usize], masks: &mut[Bitboard], ranges: &mut[Bitboar
             indexes[s as usize + 1] = indexes[s as usize] + (1 << mask.count());
         }
     }
+
+    indexes[63] + (1 << masks[63].count())
 }
 
 fn dump_slice<W: Write, T: LowerHex>(w: &mut W, name: &str, tname: &str, slice: &[T]) -> io::Result<()> {
@@ -135,14 +137,19 @@ fn generate() -> io::Result<()> {
         black_pawn_attacks[s] = step_attacks(sq, &BLACK_PAWN_DELTAS);
     }
 
-    init_magics(&mut rank_indexes, &mut rank_masks, &mut rank_ranges,
-                &mut rank_attacks, &RANK_DELTAS);
+    write!(f, "// rank table: 0x{:x} entries\n",
+             init_magics(&mut rank_indexes, &mut rank_masks, &mut rank_ranges,
+                         &mut rank_attacks, &RANK_DELTAS))?;
 
-    init_magics(&mut file_indexes, &mut file_masks, &mut file_ranges,
-                &mut file_attacks, &FILE_DELTAS);
+    write!(f, "// file table: 0x{:x} entries\n",
+             init_magics(&mut file_indexes, &mut file_masks, &mut file_ranges,
+                         &mut file_attacks, &FILE_DELTAS))?;
 
-    init_magics(&mut bishop_indexes, &mut bishop_masks, &mut bishop_ranges,
-                &mut bishop_attacks, &BISHOP_DELTAS);
+    write!(f, "// bishop table: 0x{:x} entries\n",
+             init_magics(&mut bishop_indexes, &mut bishop_masks, &mut bishop_ranges,
+                         &mut bishop_attacks, &BISHOP_DELTAS))?;
+
+    write!(f, "\n")?;
 
     for a in 0..64 {
         let sa = Square::from_index_unchecked(a as i8);

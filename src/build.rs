@@ -114,12 +114,12 @@ fn generate() -> io::Result<()> {
     let mut rank_indexes = [0usize; 64];
     let mut rank_masks = [Bitboard(0); 64];
     let mut rank_ranges = [Bitboard(0); 64];
-    let mut rank_attacks = [0u16; 0x1480]; // TODO
+    let mut rank_attacks = [0u16; 0xa00];
 
     let mut file_indexes = [0usize; 64];
     let mut file_masks = [Bitboard(0); 64];
     let mut file_ranges = [Bitboard(0); 64];
-    let mut file_attacks = [0u16; 0x1480]; // TODO
+    let mut file_attacks = [0u16; 0xa00];
 
     let mut bishop_indexes = [0usize; 64];
     let mut bishop_masks = [Bitboard(0); 64];

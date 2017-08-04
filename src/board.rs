@@ -191,7 +191,7 @@ impl Board {
 
     /// The (unique) king of the given side.
     pub fn king_of(&self, color: Color) -> Option<Square> {
-        self.by_piece(&color.king()).single_square()
+        self.by_piece(color.king()).single_square()
     }
 
     pub fn color_at(&self, sq: Square) -> Option<Color> {
@@ -274,13 +274,13 @@ impl Board {
         }
     }
 
-    pub fn by_piece(&self, piece: &Piece) -> Bitboard {
+    pub fn by_piece(&self, piece: Piece) -> Bitboard {
         self.by_color(piece.color) & self.by_role(piece.role)
     }
 
     pub fn attacks_from(&self, sq: Square) -> Bitboard {
         self.piece_at(sq)
-            .map_or(Bitboard(0), |ref piece| attacks::attacks(sq, piece, self.occupied))
+            .map_or(Bitboard(0), |piece| attacks::attacks(sq, piece, self.occupied))
     }
 
     pub fn attacks_to(&self, sq: Square, attacker: Color, occupied: Bitboard) -> Bitboard {

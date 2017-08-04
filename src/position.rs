@@ -469,7 +469,7 @@ fn validate_basic<P: Position>(pos: &P) -> Option<PositionError> {
             if pos.board().by_color(*color).count() > 16 {
                 return Some(PositionError::TooManyPieces)
             }
-            if pos.board().by_piece(&color.pawn()).count() > 8 {
+            if pos.board().by_piece(color.pawn()).count() > 8 {
                 return Some(PositionError::TooManyPawns)
             }
         }
@@ -511,7 +511,7 @@ fn validate_ep<P: Position>(pos: &P) -> Option<PositionError> {
 
 fn validate_kings<P: Position>(pos: &P) -> Option<PositionError> {
     for color in &[White, Black] {
-        if pos.board().by_piece(&color.king()).is_empty() {
+        if pos.board().by_piece(color.king()).is_empty() {
             return Some(PositionError::NoKing { color: *color })
         }
     }

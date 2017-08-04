@@ -95,7 +95,7 @@ pub fn queen_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     rook_attacks(sq, occupied) ^ bishop_attacks(sq, occupied)
 }
 
-pub fn attacks(sq: Square, piece: &Piece, occupied: Bitboard) -> Bitboard {
+pub fn attacks(sq: Square, piece: Piece, occupied: Bitboard) -> Bitboard {
     match piece.role {
         Role::Pawn   => pawn_attacks(piece.color, sq),
         Role::Knight => knight_attacks(sq),

@@ -5,33 +5,18 @@ use std::ptr;
 
 use types::Move;
 
-pub unsafe trait Array {
-    type Item;
-    const CAPACITY: usize;
+const CAPACITY: usize = 256;
 
-    fn as_ptr(&self) -> *const Self::Item;
-    fn as_mut_ptr(&mut self) -> *mut Self::Item;
-}
-
-unsafe impl<T> Array for [T; 256] {
-    type Item = T;
-    const CAPACITY: usize = 256;
-    fn as_ptr(&self) -> *const T { self as *const _ as *const _ }
-    fn as_mut_ptr(&mut self) -> *mut T { self as *mut _ as *mut _ }
-}
-
-pub struct StackVec<A: Array>
-    where A::Item: Copy
-{
-    xs: A,
+pub struct MoveList {
+    xs: [Move; CAPACITY],
     len: usize,
 }
 
-impl<A: Array> StackVec<A> where A::Item: Copy {
-    pub const CAPACITY: usize = A::CAPACITY;
+impl MoveList {
+    pub const CAPACITY: usize = CAPACITY;
 
-    pub fn new() -> StackVec<A> {
-        StackVec {
+    pub fn new() -> MoveList {
+        MoveList {
             xs: unsafe { mem::uninitialized() },
             len: 0,
         }
@@ -41,23 +26,23 @@ impl<A: Array> StackVec<A> where A::Item: Copy {
     pub fn len(&self) -> usize { self.len }
 
     #[inline]
-    pub fn push(&mut self, element: A::Item) {
-        assert!(self.len() < A::CAPACITY);
+    pub fn push(&mut self, m: Move) {
+        assert!(self.len() < Self::CAPACITY);
         unsafe {
-            self.push_unchecked(element);
+            self.push_unchecked(m);
         }
     }
 
     #[inline]
-    pub unsafe fn push_unchecked(&mut self, element: A::Item) {
+    pub unsafe fn push_unchecked(&mut self, m: Move) {
         let len = self.len();
-        debug_assert!(len < A::CAPACITY);
-        ptr::write(self.get_unchecked_mut(len), element);
+        debug_assert!(len < Self::CAPACITY);
+        ptr::write(self.get_unchecked_mut(len), m);
         self.len = len + 1;
     }
 
     pub fn swap_retain<F>(&mut self, mut f: F)
-        where F: FnMut(&mut A::Item) -> bool
+        where F: FnMut(&mut Move) -> bool
     {
         let base = self.xs.as_mut_ptr();
         let mut cur = 0;
@@ -66,7 +51,8 @@ impl<A: Array> StackVec<A> where A::Item: Copy {
             if !f(unsafe { self.get_unchecked_mut(cur) }) {
                 self.len -= 1;
                 unsafe {
-                    *base.offset(cur as isize) = *base.offset(self.len as isize);
+                    ptr::copy(base.offset(self.len as isize),
+                              base.offset(cur as isize), 1);
                 }
             } else {
                 cur += 1;
@@ -80,42 +66,40 @@ impl<A: Array> StackVec<A> where A::Item: Copy {
     }
 }
 
-impl<'a, A: Array> IntoIterator for &'a StackVec<A> where A::Item: Copy {
-    type Item = &'a A::Item;
-    type IntoIter = slice::Iter<'a, A::Item>;
+impl<'a> IntoIterator for &'a MoveList {
+    type Item = &'a Move;
+    type IntoIter = slice::Iter<'a, Move>;
 
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-impl<A: Array> Default for StackVec<A> where A::Item: Copy {
-    fn default() -> StackVec<A> {
-        StackVec::new()
+impl Default for MoveList {
+    fn default() -> MoveList {
+        MoveList::new()
     }
 }
 
-impl<A: Array> Deref for StackVec<A> where A::Item: Copy {
-    type Target = [A::Item];
+impl Deref for MoveList {
+    type Target = [Move];
 
     #[inline]
-    fn deref(&self) -> &[A::Item] {
+    fn deref(&self) -> &[Move] {
         unsafe {
             slice::from_raw_parts(self.xs.as_ptr(), self.len())
         }
     }
 }
 
-impl<A: Array> DerefMut for StackVec<A> where A::Item: Copy {
+impl DerefMut for MoveList {
     #[inline]
-    fn deref_mut(&mut self) -> &mut [A::Item] {
+    fn deref_mut(&mut self) -> &mut [Move] {
         unsafe {
             slice::from_raw_parts_mut(self.xs.as_mut_ptr(), self.len())
         }
     }
 }
 
-impl<A: Array> AsMut<[A::Item]> for StackVec<A> where A::Item: Copy {
+impl AsMut<[Move]> for MoveList {
     #[inline]
-    fn as_mut(&mut self) -> &mut [A::Item] { self }
+    fn as_mut(&mut self) -> &mut [Move] { self }
 }
-
-pub type MoveList = StackVec<[Move; 256]>;

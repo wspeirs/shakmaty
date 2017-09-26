@@ -38,6 +38,7 @@
 //! assert!(!attacks.contains(square::H7));
 //! ```
 
+use square;
 use square::Square;
 use bitboard::Bitboard;
 use types::{Color, Role, Piece};
@@ -74,13 +75,20 @@ pub fn king_attacks(sq: Square) -> Bitboard {
 /// Looks up attacks for a rook on `sq` with `occupied` squares.
 #[inline]
 pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
-    // This is safe because properly constructed squares are in bounds.
-    let m = unsafe { magics::ROOK_MAGICS.get_unchecked(sq.index() as usize) };
+    if sq < square::A5 {
+        let m = unsafe { magics::ROOK_MAGICS.get_unchecked((sq.index() ^ 0x38) as usize) };
 
-    // This is safe because a sufficient size for the attack tables was
-    // hand-selected.
-    let idx = (m.factor.wrapping_mul(occupied.0 & m.mask) >> (64 - 12)) as usize + m.offset;
-    Bitboard(unsafe { *ATTACKS.get_unchecked(idx) })
+        let idx = (m.factor.wrapping_mul(occupied.0.swap_bytes() & m.mask) >> (64 - 12)) as usize + m.offset;
+        Bitboard((unsafe { *ATTACKS.get_unchecked(idx) }).swap_bytes())
+    } else {
+        // This is safe because properly constructed squares are in bounds.
+        let m = unsafe { magics::ROOK_MAGICS.get_unchecked(sq.index() as usize) };
+
+        // This is safe because a sufficient size for the attack tables was
+        // hand-selected.
+        let idx = (m.factor.wrapping_mul(occupied.0 & m.mask) >> (64 - 12)) as usize + m.offset;
+        Bitboard(unsafe { *ATTACKS.get_unchecked(idx) })
+    }
 }
 
 /// Looks up attacks for a bishop on `sq` with `occupied` squares.

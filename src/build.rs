@@ -149,15 +149,21 @@ fn generate_basics<W: Write>(f: &mut W) -> io::Result<()> {
 }
 
 fn generate_sliding_attacks<W: Write>(f: &mut W) -> io::Result<()> {
-    let mut attacks = [Bitboard(0); 88772];
+    let mut bishop_attacks = [Bitboard(0); 5783];
+    let mut rook_attacks = [Bitboard(0); 47106];
 
     for s in 0..64 {
         let sq = Square::from_index(s as i8).expect("square index s in range");
-        init_magics(sq, &magics::ROOK_MAGICS[s], 12, &mut attacks, &ROOK_DELTAS);
-        init_magics(sq, &magics::BISHOP_MAGICS[s], 9, &mut attacks, &BISHOP_DELTAS);
+        init_magics(sq, &magics::BISHOP_MAGICS[s], 9, &mut bishop_attacks, &BISHOP_DELTAS);
     }
 
-    dump_slice(f, "ATTACKS", "u64", &attacks)?;
+    for s in 32..64 {
+        let sq = Square::from_index(s as i8).expect("square index s in range");
+        init_magics(sq, &magics::ROOK_MAGICS[s ^ 0x38], 11, &mut rook_attacks, &ROOK_DELTAS);
+    }
+
+    dump_slice(f, "BISHOP_ATTACKS", "u64", &bishop_attacks)?;
+    dump_slice(f, "ROOK_ATTACKS", "u64", &rook_attacks)?;
 
     Ok(())
 }

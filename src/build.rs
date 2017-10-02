@@ -166,40 +166,50 @@ fn generate_magic_attacks<W: Write>(f: &mut W) -> io::Result<()> {
     Ok(())
 }
 
-fn init_pext(magics: &[Magic], offsets: &mut [usize], attacks: &mut [Bitboard], deltas: &[i8]) {
+fn init_pext(magics: &[Magic], offsets: &mut [usize], ranges: &mut [Bitboard], attacks: &mut [u16], deltas: &[i8]) {
     let mut offset = 0;
 
     for s in 0..64 {
-        offsets[s] = offset;
         let sq = Square::from_index(s as u8).expect("square index s in range");
+        let range = sliding_attacks(sq, Bitboard(0), deltas);
         let mask = Bitboard(magics[s].mask);
+
         for subset in mask.carry_rippler() {
             let idx = offset + subset.extract(mask) as usize;
-            assert!(attacks[idx].is_empty());
-            attacks[idx] = sliding_attacks(sq, subset, deltas);
+            assert_eq!(attacks[idx], 0);
+            attacks[idx] = sliding_attacks(sq, subset, deltas).extract(range) as u16;
         }
+
+        offsets[s] = offset;
+        ranges[s] = sliding_attacks(sq, Bitboard(0), deltas);
         offset += 1 << mask.len();
     }
 }
 
 fn generate_pext_attacks<W: Write>(f: &mut W) -> io::Result<()> {
     let mut rook_offsets = [0; 64];
-    let mut rook_attacks = [Bitboard(0); 0x19000];
+    let mut rook_ranges = [Bitboard(0); 64];
+    let mut rook_attacks = [0; 0x19000];
     let mut bishop_offsets = [0; 64];
-    let mut bishop_attacks = [Bitboard(0); 0x1480];
+    let mut bishop_ranges = [Bitboard(0); 64];
+    let mut bishop_attacks = [0; 0x1480];
 
-    init_pext(&magics::ROOK_MAGICS, &mut rook_offsets, &mut rook_attacks, &ROOK_DELTAS);
-    init_pext(&magics::BISHOP_MAGICS, &mut bishop_offsets, &mut bishop_attacks, &BISHOP_DELTAS);
+    init_pext(&magics::ROOK_MAGICS, &mut rook_offsets, &mut rook_ranges, &mut rook_attacks, &ROOK_DELTAS);
+    init_pext(&magics::BISHOP_MAGICS, &mut bishop_offsets, &mut bishop_ranges, &mut bishop_attacks, &BISHOP_DELTAS);
 
     write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
     dump_slice(f, "ROOK_OFFSETS", "usize", &rook_offsets)?;
     write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
-    dump_slice(f, "ROOK_ATTACKS", "u64", &rook_attacks)?;
+    dump_slice(f, "ROOK_RANGES", "u64", &rook_ranges)?;
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "ROOK_ATTACKS", "u16", &rook_attacks)?;
 
     write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
     dump_slice(f, "BISHOP_OFFSETS", "usize", &bishop_offsets)?;
     write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
-    dump_slice(f, "BISHOP_ATTACKS", "u64", &bishop_attacks)?;
+    dump_slice(f, "BISHOP_RANGES", "u64", &bishop_ranges)?;
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "BISHOP_ATTACKS", "u16", &bishop_attacks)?;
 
     Ok(())
 }

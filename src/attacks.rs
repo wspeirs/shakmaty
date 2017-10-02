@@ -91,9 +91,10 @@ pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     // and table sizes have been hand-selected.
     unsafe {
         let mask = Bitboard(magics::ROOK_MAGICS.get_unchecked(sq.index() as usize).mask);
+        let range = Bitboard(*ROOK_RANGES.get_unchecked(sq.index() as usize));
         let offset = ROOK_OFFSETS.get_unchecked(sq.index() as usize);
         let idx = occupied.extract(mask) as usize + offset;
-        Bitboard(*ROOK_ATTACKS.get_unchecked(idx))
+        Bitboard::deposit(*ROOK_ATTACKS.get_unchecked(idx) as u64, range)
     }
 }
 
@@ -118,9 +119,10 @@ pub fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     // and table sizes have been hand-selected.
     unsafe {
         let mask = Bitboard(magics::BISHOP_MAGICS.get_unchecked(sq.index() as usize).mask);
+        let range = Bitboard(*BISHOP_RANGES.get_unchecked(sq.index() as usize));
         let offset = BISHOP_OFFSETS.get_unchecked(sq.index() as usize);
         let idx = occupied.extract(mask) as usize + offset;
-        Bitboard(*BISHOP_ATTACKS.get_unchecked(idx))
+        Bitboard::deposit(*BISHOP_ATTACKS.get_unchecked(idx) as u64, range)
     }
 }
 

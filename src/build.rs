@@ -90,7 +90,8 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("attacks.rs");
     let mut f = File::create(&dest_path).expect("created attacks.rs");
     generate_basics(&mut f).unwrap();
-    generate_sliding_attacks(&mut f).unwrap();
+    generate_magic_attacks(&mut f).unwrap();
+    generate_pext_attacks(&mut f).unwrap();
 }
 
 fn generate_basics<W: Write>(f: &mut W) -> io::Result<()> {
@@ -150,7 +151,7 @@ fn generate_basics<W: Write>(f: &mut W) -> io::Result<()> {
     Ok(())
 }
 
-fn generate_sliding_attacks<W: Write>(f: &mut W) -> io::Result<()> {
+fn generate_magic_attacks<W: Write>(f: &mut W) -> io::Result<()> {
     let mut attacks = [Bitboard(0); 88772];
 
     for s in 0..64 {
@@ -159,7 +160,46 @@ fn generate_sliding_attacks<W: Write>(f: &mut W) -> io::Result<()> {
         init_magics(sq, &magics::BISHOP_MAGICS[s], 9, &mut attacks, &BISHOP_DELTAS);
     }
 
+    write!(f, "#[cfg(not(all(nightly, target_feature = \"bmi2\")))]")?;
     dump_slice(f, "ATTACKS", "u64", &attacks)?;
+
+    Ok(())
+}
+
+fn init_pext(magics: &[Magic], offsets: &mut [usize], attacks: &mut [Bitboard], deltas: &[i8]) {
+    let mut offset = 0;
+
+    for s in 0..64 {
+        offsets[s] = offset;
+        let sq = Square::from_index(s as u8).expect("square index s in range");
+        let mask = Bitboard(magics[s].mask);
+        for subset in mask.carry_rippler() {
+            let idx = offset + subset.extract(mask) as usize;
+            assert!(attacks[idx].is_empty());
+            attacks[idx] = sliding_attacks(sq, subset, deltas);
+        }
+        offset += 1 << mask.len();
+    }
+}
+
+fn generate_pext_attacks<W: Write>(f: &mut W) -> io::Result<()> {
+    let mut rook_offsets = [0; 64];
+    let mut rook_attacks = [Bitboard(0); 0x19000];
+    let mut bishop_offsets = [0; 64];
+    let mut bishop_attacks = [Bitboard(0); 0x1480];
+
+    init_pext(&magics::ROOK_MAGICS, &mut rook_offsets, &mut rook_attacks, &ROOK_DELTAS);
+    init_pext(&magics::BISHOP_MAGICS, &mut bishop_offsets, &mut bishop_attacks, &BISHOP_DELTAS);
+
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "ROOK_OFFSETS", "usize", &rook_offsets)?;
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "ROOK_ATTACKS", "u64", &rook_attacks)?;
+
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "BISHOP_OFFSETS", "usize", &bishop_offsets)?;
+    write!(f, "#[cfg(all(nightly, target_feature = \"bmi2\"))]")?;
+    dump_slice(f, "BISHOP_ATTACKS", "u64", &bishop_attacks)?;
 
     Ok(())
 }

@@ -22,6 +22,11 @@ use std::iter::FromIterator;
 use square::Square;
 use types::Color;
 
+#[cfg(all(nightly, target_feature = "bmi2"))]
+extern "platform-intrinsic" {
+    fn x86_bmi2_pext_64(src: u64, mask: u64) -> u64;
+}
+
 /// A set of [squares](square/struct.Square.html) represented by a 64 bit
 /// integer mask.
 ///
@@ -206,6 +211,33 @@ impl Bitboard {
             subset: 0,
             first: true,
         }
+    }
+
+    #[cfg(all(nightly, target_feature = "bmi2"))]
+    pub fn extract(self, Bitboard(mask): Bitboard) -> u64 {
+        let Bitboard(src) = self;
+
+        // This is safe because we specifically checked for the bmi2 target
+        // feature.
+        unsafe { x86_bmi2_pext_64(src, mask) }
+    }
+
+    #[cfg(not(all(nightly, target_feature = "bmi2")))]
+    pub fn extract(self, Bitboard(mut mask): Bitboard) -> u64 {
+        let Bitboard(src) = self;
+        let mut result = 0;
+        let mut bit = 1;
+
+        while mask != 0 {
+            if src & mask & 0u64.wrapping_sub(mask) != 0 {
+                result |= bit;
+            }
+
+            mask &= mask.wrapping_sub(1);
+            bit <<= 1;
+        }
+
+        result
     }
 }
 
@@ -516,5 +548,12 @@ mod tests {
         assert_eq!(Bitboard::from_iter(None), Bitboard(0));
         assert_eq!(Bitboard::from_iter(Some(Square::D2)),
                    Bitboard::from_square(Square::D2));
+    }
+
+    #[test]
+    fn test_extract() {
+        assert_eq!(Bitboard::all().extract(Bitboard(0)), 0);
+        assert_eq!(Bitboard::all().extract(Bitboard::all()), !0u64);
+        assert_eq!(Bitboard(7).extract(Bitboard(1)), 1);
     }
 }

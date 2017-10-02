@@ -75,6 +75,8 @@
 #![warn(missing_debug_implementations)]
 
 #![cfg_attr(all(test, nightly), feature(test))]
+#![cfg_attr(nightly, feature(cfg_target_feature))]
+#![cfg_attr(nightly, feature(platform_intrinsics))]
 #![cfg_attr(nightly, feature(exact_size_is_empty))]
 
 #[cfg(all(test, nightly))]

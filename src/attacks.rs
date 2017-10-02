@@ -71,6 +71,7 @@ pub fn king_attacks(sq: Square) -> Bitboard {
 }
 
 /// Looks up attacks for a rook on `sq` with `occupied` squares.
+#[cfg(not(all(nightly, target_feature = "bmi2")))]
 #[inline]
 pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     // This is safe because properly constructed squares are in bounds.
@@ -82,7 +83,22 @@ pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     Bitboard(unsafe { *ATTACKS.get_unchecked(idx) })
 }
 
+/// Looks up attacks for a rook on `sq` with `occupied` squares.
+#[cfg(all(nightly, target_feature = "bmi2"))]
+#[inline]
+pub fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
+    // This is safe because properly constructed squares are in bounds
+    // and table sizes have been hand-selected.
+    unsafe {
+        let mask = Bitboard(magics::ROOK_MAGICS.get_unchecked(sq.index() as usize).mask);
+        let offset = ROOK_OFFSETS.get_unchecked(sq.index() as usize);
+        let idx = occupied.extract(mask) as usize + offset;
+        Bitboard(*ROOK_ATTACKS.get_unchecked(idx))
+    }
+}
+
 /// Looks up attacks for a bishop on `sq` with `occupied` squares.
+#[cfg(not(all(nightly, target_feature = "bmi2")))]
 #[inline]
 pub fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     // This is safe because properly constructed squares are in bounds.
@@ -92,6 +108,20 @@ pub fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
     // hand-selected.
     let idx = (m.factor.wrapping_mul(occupied.0 & m.mask) >> (64 - 9)) as usize + m.offset;
     Bitboard(unsafe { *ATTACKS.get_unchecked(idx) })
+}
+
+/// Looks up attacks for a bishop on `sq` with `occupied` squares.
+#[cfg(all(nightly, target_feature = "bmi2"))]
+#[inline]
+pub fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
+    // This is safe because properly constructed squares are in bounds
+    // and table sizes have been hand-selected.
+    unsafe {
+        let mask = Bitboard(magics::BISHOP_MAGICS.get_unchecked(sq.index() as usize).mask);
+        let offset = BISHOP_OFFSETS.get_unchecked(sq.index() as usize);
+        let idx = occupied.extract(mask) as usize + offset;
+        Bitboard(*BISHOP_ATTACKS.get_unchecked(idx))
+    }
 }
 
 /// Looks up attacks for a queen on `sq` with `occupied` squares.

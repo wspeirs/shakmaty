@@ -78,7 +78,7 @@
 #![cfg_attr(nightly, feature(exact_size_is_empty))]
 #![cfg_attr(nightly, feature(tool_lints))]
 
-extern crate arrayvec;
+extern crate smallvec;
 #[macro_use]
 extern crate bitflags;
 extern crate btoi;

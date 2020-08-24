@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![feature(const_eval_limit)]
+#![const_eval_limit = "200000000"]
 
 use std::env;
 use std::fmt::LowerHex;
@@ -23,6 +25,92 @@ const KING_DELTAS: [i32; 8] = [9, 8, 7, 1, -9, -8, -7, -1];
 const KNIGHT_DELTAS: [i32; 8] = [17, 15, 10, 6, -17, -15, -10, -6];
 const WHITE_PAWN_DELTAS: [i32; 2] = [7, 9];
 const BLACK_PAWN_DELTAS: [i32; 2] = [-7, -9];
+
+const fn better_sliding_attacks(square: i32, occupied: u64, deltas: &[i32]) -> u64 {
+    let mut attack = 0;
+
+    let mut i = 0;
+    while i < deltas.len() {
+        let mut previous = square;
+        loop {
+            let sq = previous + deltas[i];
+            if sq < 0 || sq > 63 || (sq & 0x7) - (previous & 0x7) > 2 || (sq & 0x7) - (previous - 0x7) < -2 {
+                break;
+            }
+            attack |= 1 << sq;
+            if occupied & (1 << sq) != 0 {
+                break;
+            }
+            previous = sq;
+        }
+        i += 1;
+    }
+
+    attack
+}
+
+const fn tabulate_stepping_attack(deltas: &[i32]) -> [u64; 64] {
+    let mut table = [0; 64];
+    let mut sq = 0;
+    while sq < 64 {
+        table[sq] = better_sliding_attacks(sq as i32, !0, deltas);
+        sq += 1;
+    }
+    table
+}
+
+static KNIGHT_ATTACKS: [u64; 64] = tabulate_stepping_attack(&KNIGHT_DELTAS);
+const KING_ATTACKS: [u64; 64] = tabulate_stepping_attack(&KING_DELTAS);
+const WHITE_PAWN_ATTACKS: [u64; 64] = tabulate_stepping_attack(&WHITE_PAWN_DELTAS);
+const BLACK_PAWN_ATTACKS: [u64; 64] = tabulate_stepping_attack(&BLACK_PAWN_DELTAS);
+
+const fn tabulate_rays() -> [[u64; 64]; 64] {
+    let mut table = [[0; 64]; 64];
+    let mut a = 0;
+    while a < 64 {
+        let mut b = 0;
+        while b < 64 {
+            table[a][b] = if a == b {
+                0
+            } else if a & 7 == b & 7 {
+                1 << (a & 7)
+            } else if a >> 3 == b >> 3 {
+                0
+            } else {
+                0
+            };
+            b += 1;
+        }
+        a += 1;
+    }
+    table
+}
+
+const RAYS: [[u64; 64]; 64] = tabulate_rays();
+
+const fn better_init_magics() -> [u64; 88772] {
+    let mut table = [0; 88772];
+    let mut square = 0;
+    while square < 64 {
+        let range = better_sliding_attacks(square, 0, &ROOK_DELTAS);
+        let mut subset = 0;
+        loop {
+            let attack = better_sliding_attacks(square, subset, &ROOK_DELTAS);
+            let magic = &magics::ROOK_MAGICS[square as usize];
+            let idx = (magic.factor.wrapping_mul(subset) >> (64 - 12)) as usize + magic.offset;
+            //assert!(table[idx] == 0 || table[idx] == attack);
+            table[idx] = attack;
+            subset = subset.wrapping_sub(range) & range;
+            if subset == 0 {
+                break;
+            }
+        }
+        square += 1;
+    }
+    table
+}
+
+const ATTACKS: [u64; 88772] = better_init_magics();
 
 fn sliding_attacks(sq: Square, occupied: Bitboard, deltas: &[i32]) -> Bitboard {
     let mut attack = Bitboard(0);

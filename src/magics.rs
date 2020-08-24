@@ -7,7 +7,7 @@ pub struct Magic {
     pub offset: usize,
 }
 
-pub static ROOK_MAGICS: [Magic; 64] = [
+pub const ROOK_MAGICS: [Magic; 64] = [
     Magic { mask: 0x0001_0101_0101_017e, factor: 0x0028_0077_ffeb_fffe, offset: 26304 },
     Magic { mask: 0x0002_0202_0202_027c, factor: 0x2004_0102_0109_7fff, offset: 35520 },
     Magic { mask: 0x0004_0404_0404_047a, factor: 0x0010_0200_1005_3fff, offset: 38592 },

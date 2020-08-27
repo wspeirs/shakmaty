@@ -74,7 +74,7 @@ pub const ROOK_MAGICS: [Magic; 64] = [
     Magic { mask: 0x7e80_8080_8080_8000, factor: 0x0001_ffff_9dff_a333, offset: 14826 },
 ];
 
-pub static BISHOP_MAGICS: [Magic; 64] = [
+pub const BISHOP_MAGICS: [Magic; 64] = [
     Magic { mask: 0x0040_2010_0804_0200, factor: 0x007f_bfbf_bfbf_bfff, offset:  5378 },
     Magic { mask: 0x0000_4020_1008_0400, factor: 0x0000_a060_4010_07fc, offset:  4093 },
     Magic { mask: 0x0000_0040_2010_0a00, factor: 0x0001_0040_0802_0000, offset:  4314 },

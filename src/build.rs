@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![feature(const_eval_limit)]
-#![const_eval_limit = "200000000"]
+#![const_eval_limit = "20000000"]
 
 use std::env;
 use std::fmt::LowerHex;
@@ -30,15 +30,18 @@ const fn better_sliding_attacks(square: i32, occupied: u64, deltas: &[i32]) -> u
     let mut attack = 0;
 
     let mut i = 0;
-    while i < deltas.len() {
+    let len = deltas.len();
+    while i < len {
         let mut previous = square;
         loop {
             let sq = previous + deltas[i];
-            if sq < 0 || sq > 63 || (sq & 0x7) - (previous & 0x7) > 2 || (sq & 0x7) - (previous - 0x7) < -2 {
+            let file_diff = (sq & 0x7) - (previous & 0x7);
+            if file_diff > 2 || file_diff < -2 || sq < 0 || sq > 63 {
                 break;
             }
-            attack |= 1 << sq;
-            if occupied & (1 << sq) != 0 {
+            let bb = 1 << sq;
+            attack |= bb;
+            if occupied & bb != 0 {
                 break;
             }
             previous = sq;
@@ -92,7 +95,21 @@ const fn better_init_magics() -> [u64; 88772] {
     let mut table = [0; 88772];
     let mut square = 0;
     while square < 64 {
-        let range = better_sliding_attacks(square, 0, &ROOK_DELTAS);
+        let range = better_sliding_attacks(square, 0, &BISHOP_DELTAS);
+        let mut subset = 0;
+        loop {
+            let attack = better_sliding_attacks(square, subset, &BISHOP_DELTAS);
+            let magic = &magics::BISHOP_MAGICS[square as usize];
+            let idx = (magic.factor.wrapping_mul(subset) >> (64 - 9)) as usize + magic.offset;
+            //assert!(table[idx] == 0 || table[idx] == attack);
+            table[idx] = attack;
+            subset = subset.wrapping_sub(range) & range;
+            if subset == 0 {
+                break;
+            }
+        }
+
+        /* let range = better_sliding_attacks(square, 0, &ROOK_DELTAS);
         let mut subset = 0;
         loop {
             let attack = better_sliding_attacks(square, subset, &ROOK_DELTAS);
@@ -104,7 +121,8 @@ const fn better_init_magics() -> [u64; 88772] {
             if subset == 0 {
                 break;
             }
-        }
+        } */
+
         square += 1;
     }
     table

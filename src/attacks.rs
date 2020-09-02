@@ -179,7 +179,7 @@ pub fn attacks(sq: Square, piece: Piece, occupied: Bitboard) -> Bitboard {
 /// [`Bitboard`]: ../struct.Bitboard.html
 #[inline]
 pub fn ray(a: Square, b: Square) -> Bitboard {
-    Bitboard(BB_RAYS[usize::from(a)][usize::from(b)])
+    Bitboard(RAYS[usize::from(a)][usize::from(b)])
 }
 
 /// The squares between the two squares (bounds not included), or an empty

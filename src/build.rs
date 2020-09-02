@@ -2,7 +2,7 @@
 #![feature(const_fn)]
 #![feature(const_panic)]
 #![feature(const_eval_limit)]
-#![const_eval_limit = "20000000"]
+#![const_eval_limit = "14000000"]
 
 use std::env;
 use std::fmt::LowerHex;

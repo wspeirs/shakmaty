@@ -34,8 +34,9 @@ pub use crate::position::Horde;
 
 use crate::{Board, Color, Bitboard, Square, Material, RemainingChecks};
 use crate::{Role, Move, MoveList, CastlingSide, Outcome, Castles};
-use crate::{Setup, FromSetup, Position, PositionError};
-use crate::setup::SwapTurn;
+use crate::{Setup, Position, PositionError};
+
+use std::convert::TryFrom;
 
 /// Discriminant of [`VariantPosition`].
 ///
@@ -146,21 +147,23 @@ impl VariantPosition {
         }
     }
 
-    pub fn from_setup(variant: Variant, setup: &dyn Setup) -> Result<VariantPosition, PositionError> {
+    pub fn from_setup(variant: Variant, setup: Setup) -> Result<VariantPosition, PositionError> {
         match variant {
-            Variant::Chess => Chess::from_setup(setup).map(VariantPosition::Chess),
-            Variant::Atomic => Atomic::from_setup(setup).map(VariantPosition::Atomic),
-            Variant::Antichess => Antichess::from_setup(setup).map(VariantPosition::Antichess),
-            Variant::KingOfTheHill => KingOfTheHill::from_setup(setup).map(VariantPosition::KingOfTheHill),
-            Variant::ThreeCheck => ThreeCheck::from_setup(setup).map(VariantPosition::ThreeCheck),
-            Variant::Crazyhouse => Crazyhouse::from_setup(setup).map(VariantPosition::Crazyhouse),
-            Variant::RacingKings => RacingKings::from_setup(setup).map(VariantPosition::RacingKings),
-            Variant::Horde => Horde::from_setup(setup).map(VariantPosition::Horde),
+            Variant::Chess => Chess::try_from(setup).map(VariantPosition::Chess),
+            Variant::Atomic => Atomic::try_from(setup).map(VariantPosition::Atomic),
+            Variant::Antichess => Antichess::try_from(setup).map(VariantPosition::Antichess),
+            Variant::KingOfTheHill => KingOfTheHill::try_from(setup).map(VariantPosition::KingOfTheHill),
+            Variant::ThreeCheck => ThreeCheck::try_from(setup).map(VariantPosition::ThreeCheck),
+            Variant::Crazyhouse => Crazyhouse::try_from(setup).map(VariantPosition::Crazyhouse),
+            Variant::RacingKings => RacingKings::try_from(setup).map(VariantPosition::RacingKings),
+            Variant::Horde => Horde::try_from(setup).map(VariantPosition::Horde),
         }
     }
 
     pub fn swap_turn(self) -> Result<VariantPosition, PositionError> {
-        VariantPosition::from_setup(self.variant(), &SwapTurn(self))
+        let mut setup = Setup::from(self);
+        setup.turn = !setup.turn;
+        VariantPosition::from_setup(self.variant(), self)
     }
 
     pub fn variant(&self) -> Variant {
@@ -203,15 +206,19 @@ impl VariantPosition {
     }
 }
 
-impl Setup for VariantPosition {
-    fn board(&self) -> &Board { self.borrow().board() }
-    fn pockets(&self) -> Option<&Material> { self.borrow().pockets() }
-    fn turn(&self) -> Color { self.borrow().turn() }
-    fn castling_rights(&self) -> Bitboard { self.borrow().castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.borrow().ep_square() }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { self.borrow().remaining_checks() }
-    fn halfmoves(&self) -> u32 { self.borrow().halfmoves() }
-    fn fullmoves(&self) -> u32 { self.borrow().fullmoves() }
+impl From<VariantPosition> for Setup {
+    fn from(pos: VariantPosition) -> Setup {
+        match pos {
+            VariantPosition::Chess(pos) => pos.into(),
+            VariantPosition::Atomic(pos) => pos.into(),
+            VariantPosition::Antichess(pos) => pos.into(),
+            VariantPosition::KingOfTheHill(pos) => pos.into(),
+            VariantPosition::ThreeCheck(pos) => pos.into(),
+            VariantPosition::Crazyhouse(pos) => pos.into(),
+            VariantPosition::RacingKings(pos) => pos.into(),
+            VariantPosition::Horde(pos) => pos.into(),
+        }
+    }
 }
 
 impl Position for VariantPosition {

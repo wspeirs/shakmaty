@@ -22,15 +22,15 @@ use crate::material::Material;
 use crate::board::Board;
 
 /// A not necessarily legal position.
-pub trait Setup {
+pub struct Setup {
     /// Piece positions on the board.
-    fn board(&self) -> &Board;
+    pub board: Board,
 
     /// Pockets in chess variants like Crazyhouse.
-    fn pockets(&self) -> Option<&Material>;
+    pub pockets: Option<Material>,
 
     /// Side to move.
-    fn turn(&self) -> Color;
+    pub turn: Color,
 
     /// Castling rights in terms of corresponding rook positions.
     ///
@@ -50,13 +50,13 @@ pub trait Setup {
     ///
     /// assert_eq!(rooks, Bitboard::CORNERS);
     /// ```
-    fn castling_rights(&self) -> Bitboard;
+    pub castling_rights: Bitboard,
 
     /// En passant target square on the third or sixth rank.
-    fn ep_square(&self) -> Option<Square>;
+    pub ep_square: Option<Square>,
 
     /// Remaining checks in chess variants like Three-Check.
-    fn remaining_checks(&self) -> Option<&RemainingChecks>;
+    pub remaining_checks: Option<RemainingChecks>,
 
     /// Number of half-moves since the last
     /// [capture or pawn move](enum.Move.html#method.is_zeroing).
@@ -69,7 +69,7 @@ pub trait Setup {
     /// let pos = Chess::default();
     /// assert_eq!(pos.halfmoves(), 0);
     /// ```
-    fn halfmoves(&self) -> u32;
+    pub halfmoves: u32,
 
     /// Current move number.
     ///
@@ -83,118 +83,33 @@ pub trait Setup {
     /// let pos = Chess::default();
     /// assert_eq!(pos.fullmoves(), 1);
     /// ```
-    fn fullmoves(&self) -> u32;
+    pub fullmoves: u32,
+}
 
-    /// Squares occupied by the side to move.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use shakmaty::{Bitboard, Chess, Rank, Setup};
-    ///
-    /// let pos = Chess::default();
-    /// let mask = pos.us();
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // 1 1 1 1 1 1 1 1
-    /// // 1 1 1 1 1 1 1 1
-    ///
-    /// assert_eq!(mask, Bitboard::from(Rank::First) | Bitboard::from(Rank::Second));
-    fn us(&self) -> Bitboard {
-        self.board().by_color(self.turn())
-    }
-
-    /// Squares occupied by a given piece type of the side to move.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use shakmaty::{Bitboard, Chess, Role, Setup, Square};
-    ///
-    /// let pos = Chess::default();
-    /// let mask = pos.our(Role::Queen);
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . 1 . . . .
-    ///
-    /// assert_eq!(mask, Bitboard::from_square(Square::D1));
-    /// ```
-    fn our(&self, role: Role) -> Bitboard {
-        self.us() & self.board().by_role(role)
-    }
-
-    /// Squares occupied by the waiting player.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use shakmaty::{Bitboard, Chess, Rank, Setup};
-    ///
-    /// let pos = Chess::default();
-    /// let mask = pos.them();
-    /// // 1 1 1 1 1 1 1 1
-    /// // 1 1 1 1 1 1 1 1
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    ///
-    /// assert_eq!(mask, Bitboard::from(Rank::Seventh) | Bitboard::from(Rank::Eighth));
-    /// ```
-    fn them(&self) -> Bitboard {
-        self.board().by_color(!self.turn())
-    }
-
-    /// Squares occupied by a given piece type of the waiting player.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use shakmaty::{Bitboard, Chess, Role, Setup, Square};
-    ///
-    /// let pos = Chess::default();
-    /// let mask = pos.their(Role::Queen);
-    /// // . . . 1 . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    /// // . . . . . . . .
-    ///
-    /// assert_eq!(mask, Bitboard::from_square(Square::D8));
-    /// ```
-    fn their(&self, role: Role) -> Bitboard {
-        self.them() & self.board().by_role(role)
+impl Default for Setup {
+    fn default() -> Setup {
+        Setup {
+            board: Board::default(),
+            pockets: None,
+            turn: Color::White,
+            castling_rights: Bitboard::CORNERS,
+            ep_square: None,
+            remaining_checks: None,
+            halfmoves: 0,
+            fullmoves: 1,
+        }
     }
 }
 
-pub struct SwapTurn<S: Setup>(pub S);
-
-impl<S: Setup> Setup for SwapTurn<S> {
-    fn turn(&self) -> Color {
-        !self.0.turn()
+impl Setup {
+    /// The empty setup `8/8/8/8/8/8/8/8 w - - 0 1`.
+    pub fn empty() -> Setup {
+        Setup {
+            board: Board::empty(),
+            castling_rights: Bitboard(0),
+            ..Setup::default()
+        }
     }
-
-    fn board(&self) -> &Board { self.0.board() }
-    fn pockets(&self) -> Option<&Material> { self.0.pockets() }
-    fn castling_rights(&self) -> Bitboard { self.0.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.0.ep_square() }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { self.0.remaining_checks() }
-    fn halfmoves(&self) -> u32 { self.0.halfmoves() }
-    fn fullmoves(&self) -> u32 { self.0.fullmoves() }
 }
 
 /// Castling paths and unmoved rooks.
@@ -228,7 +143,7 @@ impl Castles {
         EMPTY_CASTLES.clone()
     }
 
-    pub fn from_setup(setup: &dyn Setup) -> Result<Castles, Castles> {
+    pub fn from_setup(setup: &Setup) -> Result<Castles, Castles> {
         let mut castles = Castles::empty();
 
         let castling_rights = setup.castling_rights();

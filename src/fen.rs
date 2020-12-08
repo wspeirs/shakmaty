@@ -31,12 +31,12 @@
 //!            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
 //! ```
 //!
-//! [`Fen`] and [`Board`] also implement [`Display`]:
+//! [`Setup`] and [`Board`] also implement [`Display`]:
 //!
 //! ```
-//! use shakmaty::fen::Fen;
+//! use shakmaty::Setup;
 //!
-//! let empty_fen = Fen::empty();
+//! let empty_fen = Setup::empty();
 //! assert_eq!(empty_fen.to_string(), "8/8/8/8/8/8/8/8 w - - 0 1");
 //! ```
 //!
@@ -76,7 +76,7 @@ use crate::material::Material;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::setup::Setup;
-use crate::position::{FromSetup, PositionError};
+use crate::position::PositionError;
 
 /// FEN formatting options.
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -180,7 +180,7 @@ impl FenOpts {
 
     /// Create an EPD such as
     /// `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -`.
-    pub fn epd(&self, setup: &dyn Setup) -> String {
+    pub fn epd(&self, setup: &Setup) -> String {
         let pockets = setup.pockets().map_or("".to_owned(), |p| {
             if self.scid {
                 format!("/{}", p.fen())
@@ -208,7 +208,7 @@ impl FenOpts {
 
     /// Create a FEN such as
     /// `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1`.
-    pub fn fen(&self, setup: &dyn Setup) -> String {
+    pub fn fen(&self, setup: &Setup) -> String {
         match setup.remaining_checks() {
             Some(checks) if self.scid => {
                 format!("{}{} {} {} {} {} {} +{}+{}",
@@ -356,68 +356,7 @@ impl fmt::Display for Board {
     }
 }
 
-/// A parsed FEN.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Fen {
-    pub board: Board,
-    pub pockets: Option<Material>,
-    pub turn: Color,
-    pub castling_rights: Bitboard,
-    pub ep_square: Option<Square>,
-    pub remaining_checks: Option<RemainingChecks>,
-    pub halfmoves: u32,
-    pub fullmoves: u32,
-}
-
-impl Setup for Fen {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { self.pockets.as_ref() }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { self.castling_rights }
-    fn ep_square(&self) -> Option<Square> { self.ep_square }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { self.remaining_checks.as_ref() }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
-}
-
-impl Default for Fen {
-    fn default() -> Fen {
-        Fen {
-            board: Board::default(),
-            pockets: None,
-            turn: White,
-            castling_rights: Bitboard::CORNERS,
-            ep_square: None,
-            remaining_checks: None,
-            halfmoves: 0,
-            fullmoves: 1,
-        }
-    }
-}
-
-impl Fen {
-    /// The FEN of the empty position `8/8/8/8/8/8/8/8 w - - 0 1`.
-    pub fn empty() -> Fen {
-        Fen {
-            board: Board::empty(),
-            castling_rights: Bitboard(0),
-            ..Fen::default()
-        }
-    }
-
-    /// Set up a [`Position`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PositionError`] if the setup is not a legal position.
-    ///
-    /// [`FromSetup`]: ../trait.FromSetup.html
-    /// [`Position`]: ../trait.Position.html
-    /// [`PositionError`]: ../enum.PositionError.html
-    pub fn position<P: FromSetup>(&self) -> Result<P, PositionError> {
-        P::from_setup(self)
-    }
-
+impl Setup {
     /// Parses a FEN.
     ///
     /// # Errors
@@ -438,9 +377,9 @@ impl Fen {
     /// ```
     ///
     /// [`ParseFenError`]: enum.ParseFenError.html
-    pub fn from_ascii(fen: &[u8]) -> Result<Fen, ParseFenError> {
+    pub fn from_ascii(fen: &[u8]) -> Result<Setup, ParseFenError> {
         let mut parts = fen.split(|ch| *ch == b' ');
-        let mut result = Fen::empty();
+        let mut result = Setup::empty();
 
         let board_part = parts.next().expect("splits have at least one part");
 
@@ -542,30 +481,17 @@ impl Fen {
             Ok(result)
         }
     }
-
-    pub fn from_setup<S: Setup>(setup: &S) -> Fen {
-        Fen {
-            board: setup.board().clone(),
-            pockets: setup.pockets().cloned(),
-            turn: setup.turn(),
-            castling_rights: setup.castling_rights(),
-            ep_square: setup.ep_square(),
-            remaining_checks: setup.remaining_checks().cloned(),
-            halfmoves: setup.halfmoves(),
-            fullmoves: setup.fullmoves(),
-        }
-    }
 }
 
-impl FromStr for Fen {
+impl FromStr for Setup {
     type Err = ParseFenError;
 
-    fn from_str(fen: &str) -> Result<Fen, ParseFenError> {
-        Fen::from_ascii(fen.as_bytes())
+    fn from_str(fen: &str) -> Result<Setup, ParseFenError> {
+        Setup::from_ascii_fen(fen.as_bytes())
     }
 }
 
-impl fmt::Display for Fen {
+impl fmt::Display for Setup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", FenOpts::new().promoted(true).fen(self))
     }
@@ -584,7 +510,7 @@ pub fn board_fen(board: &Board) -> String {
 /// [`FenOpts`].
 ///
 /// [`FenOpts`]: struct.FenOpts.html
-pub fn epd(setup: &dyn Setup) -> String {
+pub fn epd(setup: &Setup) -> String {
     FenOpts::default().epd(setup)
 }
 
@@ -593,7 +519,7 @@ pub fn epd(setup: &dyn Setup) -> String {
 /// [`FenOpts`].
 ///
 /// [`FenOpts`]: struct.FenOpts.html
-pub fn fen(setup: &dyn Setup) -> String {
+pub fn fen(setup: &Setup) -> String {
     FenOpts::default().fen(setup)
 }
 

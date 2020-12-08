@@ -301,6 +301,13 @@ impl Board {
             white: self.material_side(Color::White),
         }
     }
+
+    pub fn without_promoted(self) -> Board {
+        Board {
+            promoted: Bitboard(0),
+            ..self
+        }
+    }
 }
 
 impl Default for Board {

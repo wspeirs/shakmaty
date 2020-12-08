@@ -20,12 +20,13 @@ use crate::bitboard::Bitboard;
 use crate::square::{Rank, Square};
 use crate::types::{Black, CastlingSide, Color, Move, Piece, RemainingChecks, Role, White};
 use crate::material::{Material, MaterialSide};
-use crate::setup::{Castles, Setup, SwapTurn, EMPTY_CASTLES};
+use crate::setup::{Castles, Setup, EMPTY_CASTLES};
 use crate::movelist::{ArrayVecExt, MoveList};
 
 use bitflags::bitflags;
 
 use std::fmt;
+use std::convert::TryFrom;
 use std::error::Error;
 
 /// Outcome of a game.
@@ -116,25 +117,9 @@ impl From<()> for IllegalMoveError {
     }
 }
 
-/// Validate and set up an arbitrary position. All provided chess variants
-/// support this.
-pub trait FromSetup: Sized {
-    /// Set up a position.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PositionError`] if the setup does not meet basic validity
-    /// requirements. Meeting the requirements does not imply that the position
-    /// is actually reachable with a series of legal moves from the starting
-    /// position.
-    ///
-    /// [`PositionError`]: enum.PositionError.html
-    fn from_setup(setup: &dyn Setup) -> Result<Self, PositionError>;
-}
-
 /// A legal chess or chess variant position. See [`Chess`] for a concrete
 /// implementation and [`PositionExt`] for additional provided methods.
-pub trait Position: Setup {
+pub trait Position {
     /// Collects all legal moves in an existing buffer.
     fn legal_moves(&self, moves: &mut MoveList);
 
@@ -259,9 +244,11 @@ pub trait PositionExt: Position {
     /// [`PositionError`]: enum.PositionError.html
     fn swap_turn(self) -> Result<Self, PositionError>
     where
-        Self: Sized + FromSetup
+        Self: Sized,
     {
-        Self::from_setup(&SwapTurn(self))
+        let mut setup = Setup::from(self);
+        setup = !setup.turn;
+        Self::try_from(setup)
     }
 
     /// Generates legal moves.
@@ -397,19 +384,23 @@ impl Default for Chess {
     }
 }
 
-impl Setup for Chess {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { self.castles.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.ep_square.filter(|_| has_relevant_ep(self)) }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
+impl From<Chess> for Setup {
+    fn from(pos: Chess) -> Setup {
+        Setup {
+            board: pos.board.without_promoted(),
+            pockets: None,
+            turn: pos.turn,
+            castling_rights: pos.castles.castling_rights(),
+            ep_square: pos.ep_square.filter(|_| has_relevant_ep(pos)),
+            remaining_checks: None,
+            halfmoves: pos.halfmoves,
+            fullmoves: pos.fullmoves,
+        }
+    }
 }
 
-impl FromSetup for Chess {
-    fn from_setup(setup: &dyn Setup) -> Result<Chess, PositionError> {
+impl TryFrom<Setup> for Chess {
+    fn try_from(setup: Setup) -> Result<Chess, PositionError> {
         let (castles, errors) = match Castles::from_setup(setup) {
             Ok(castles) => (castles, PositionError::empty()),
             Err(castles) => (castles, PositionError::BAD_CASTLING_RIGHTS),
@@ -604,19 +595,23 @@ impl Default for Atomic {
     }
 }
 
-impl Setup for Atomic {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { self.castles.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.ep_square.filter(|_| has_relevant_ep(self)) }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
+impl From<Atomic> for Setup {
+    fn from(pos: Atomic) -> Setup {
+        Setup {
+            board: pos.board.without_promoted(),
+            pockets: None,
+            turn: pos.turn,
+            castling_rights: pos.castles.castling_rights(),
+            ep_square: pos.ep_square.filter(|_| has_relevant_ep(pos)),
+            remaining_checks: None,
+            halfmoves: pos.halfmoves,
+            fullmoves: pos.fullmoves,
+        }
+    }
 }
 
-impl FromSetup for Atomic {
-    fn from_setup(setup: &dyn Setup) -> Result<Atomic, PositionError> {
+impl TryFrom<Setup> for Atomic {
+    fn try_from(setup: Setup) -> Result<Atomic, PositionError> {
         let (castles, errors) = match Castles::from_setup(setup) {
             Ok(castles) => (castles, PositionError::empty()),
             Err(castles) => (castles, PositionError::BAD_CASTLING_RIGHTS),
@@ -772,7 +767,7 @@ impl Position for Atomic {
 pub struct Antichess {
     board: Board,
     turn: Color,
-    castles: Castles,
+    castles: Castles, // TODO: remove
     ep_square: Option<Square>,
     halfmoves: u32,
     fullmoves: u32,
@@ -791,19 +786,23 @@ impl Default for Antichess {
     }
 }
 
-impl Setup for Antichess {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { self.castles.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.ep_square.filter(|_| has_relevant_ep(self)) }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
+impl From<Antichess> for Setup {
+    fn from(pos: Antichess) -> Setup {
+        Setup {
+            board: pos.board,
+            pockets: None,
+            turn: pos.turn,
+            castling_rights: pos.castles.castling_rights(),
+            ep_square: pos.ep_square.filter(|_| has_relevant_ep(pos)),
+            remaining_checks: None,
+            halfmoves: pos.halfmoves,
+            fullmoves: pos.fullmoves 
+        }
+    }
 }
 
-impl FromSetup for Antichess {
-    fn from_setup(setup: &dyn Setup) -> Result<Antichess, PositionError> {
+impl TryFrom<Setup> for Antichess {
+    fn try_from(setup: Setup) -> Result<Antichess, PositionError> {
         let (castles, errors) = match Castles::from_setup(setup) {
             Ok(castles) => (castles, PositionError::empty()),
             Err(castles) => (castles, PositionError::BAD_CASTLING_RIGHTS),
@@ -904,19 +903,14 @@ pub struct KingOfTheHill {
     chess: Chess,
 }
 
-impl Setup for KingOfTheHill {
-    fn board(&self) -> &Board { self.chess.board() }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.chess.turn() }
-    fn castling_rights(&self) -> Bitboard { self.chess.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.chess.ep_square() }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.chess.halfmoves() }
-    fn fullmoves(&self) -> u32 { self.chess.fullmoves() }
+impl From<KingOfTheHill> for Setup {
+    fn from(pos: KingOfTheHill) -> Setup {
+        pos.chess.into()
+    }
 }
 
-impl FromSetup for KingOfTheHill {
-    fn from_setup(setup: &dyn Setup) -> Result<KingOfTheHill, PositionError> {
+impl TryFrom<Setup> for KingOfTheHill {
+    fn try_from(setup: Setup) -> Result<KingOfTheHill, PositionError> {
         Chess::from_setup(setup).map(|chess| KingOfTheHill { chess })
     }
 }
@@ -988,19 +982,17 @@ pub struct ThreeCheck {
     remaining_checks: RemainingChecks,
 }
 
-impl Setup for ThreeCheck {
-    fn board(&self) -> &Board { self.chess.board() }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.chess.turn() }
-    fn castling_rights(&self) -> Bitboard { self.chess.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.chess.ep_square() }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { Some(&self.remaining_checks) }
-    fn halfmoves(&self) -> u32 { self.chess.halfmoves() }
-    fn fullmoves(&self) -> u32 { self.chess.fullmoves }
+impl From<ThreeCheck> for Setup {
+    fn from(pos: ThreeCheck) -> Setup {
+        Setup {
+            remaining_checks: Some(pos.remaining_checks),
+            ..pos.chess.into()
+        }
+    }
 }
 
-impl FromSetup for ThreeCheck {
-    fn from_setup(setup: &dyn Setup) -> Result<ThreeCheck, PositionError> {
+impl TryFrom<Setup> for ThreeCheck {
+    fn try_from(setup: Setup) -> Result<ThreeCheck, PositionError> {
         let remaining_checks = setup.remaining_checks().cloned().unwrap_or_default();
         let errors = if remaining_checks.white == 0 && remaining_checks.black == 0 {
             PositionError::VARIANT
@@ -1117,19 +1109,18 @@ impl Crazyhouse {
     }
 }
 
-impl Setup for Crazyhouse {
-    fn board(&self) -> &Board { self.chess.board() }
-    fn pockets(&self) -> Option<&Material> { Some(&self.pockets) }
-    fn turn(&self) -> Color { self.chess.turn() }
-    fn castling_rights(&self) -> Bitboard { self.chess.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.chess.ep_square() }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.chess.halfmoves() }
-    fn fullmoves(&self) -> u32 { self.chess.fullmoves() }
+impl From<Crazyhouse> for Setup {
+    fn from(pos: Crazyhouse) -> Setup {
+        Setup {
+            pockets: Some(pos.pockets),
+            board: pos.chess.board,
+            ..pos.chess.into()
+        }
+    }
 }
 
-impl FromSetup for Crazyhouse {
-    fn from_setup(setup: &dyn Setup) -> Result<Crazyhouse, PositionError> {
+impl TryFrom<Setup> for Crazyhouse {
+    fn try_from(setup: Setup) -> Result<Crazyhouse, PositionError> {
         Chess::from_setup(setup).and_then(|chess| {
             let pockets = setup.pockets().cloned().unwrap_or_default();
             if pockets.count().saturating_add(chess.board().occupied().count()) > 64 {
@@ -1261,19 +1252,23 @@ impl Default for RacingKings {
     }
 }
 
-impl Setup for RacingKings {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { Bitboard(0) }
-    fn ep_square(&self) -> Option<Square> { None }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
+impl From<RacingKings> for Setup {
+    fn from(pos: RacingKings) -> Setup {
+        Setup {
+            board: pos.board.without_promoted(),
+            pockets: None,
+            turn: pos.turn,
+            castling_rights: Bitboard(0),
+            ep_square: None,
+            remaining_checks: None,
+            halfmoves: pos.halfmoves,
+            fullmoves: pos.fullmoves,
+        }
+    }
 }
 
-impl FromSetup for RacingKings {
-    fn from_setup(setup: &dyn Setup) -> Result<RacingKings, PositionError> {
+impl TryFrom<Setup> for RacingKings {
+    fn try_from(setup: Setup) -> Result<RacingKings, PositionError> {
         let mut errors = PositionError::empty();
 
         if setup.castling_rights().any() {
@@ -1417,19 +1412,23 @@ impl Default for Horde {
     }
 }
 
-impl Setup for Horde {
-    fn board(&self) -> &Board { &self.board }
-    fn pockets(&self) -> Option<&Material> { None }
-    fn turn(&self) -> Color { self.turn }
-    fn castling_rights(&self) -> Bitboard { self.castles.castling_rights() }
-    fn ep_square(&self) -> Option<Square> { self.ep_square.filter(|_| has_relevant_ep(self)) }
-    fn remaining_checks(&self) -> Option<&RemainingChecks> { None }
-    fn halfmoves(&self) -> u32 { self.halfmoves }
-    fn fullmoves(&self) -> u32 { self.fullmoves }
+impl From<Horde> for Setup {
+    fn from(pos: Horde) -> Setup {
+        Setup {
+            board: pos.board,
+            pockets: None,
+            turn: pos.turn,
+            castling_rights: pos.castles.castling_rights(),
+            ep_square: pos.ep_square.filter(|_| has_relevant_ep(pos)),
+            remaining_checks: None,
+            halfmoves: pos.halfmoves,
+            fullmoves: pos.fullmoves,
+        }
+    }
 }
 
-impl FromSetup for Horde {
-    fn from_setup(setup: &dyn Setup) -> Result<Horde, PositionError> {
+impl TryFrom<Setup> for Horde {
+    fn try_from(setup: Setup) -> Result<Horde, PositionError> {
         let (castles, errors) = match Castles::from_setup(setup) {
             Ok(castles) => (castles, PositionError::empty()),
             Err(castles) => (castles, PositionError::BAD_CASTLING_RIGHTS),

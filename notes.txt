@@ -1,0 +1,3 @@
+https://stackoverflow.com/questions/61417452/how-to-get-a-feature-requirement-tag-in-the-documentation-generated-by-cargo-do
+
+Use `RUSTFLAGS="--cfg docsrs" cargo +nightly doc --all-features` if you want to test this locally.

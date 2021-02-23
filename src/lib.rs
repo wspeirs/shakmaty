@@ -69,6 +69,8 @@
 #![warn(missing_debug_implementations)]
 #![warn(rust_2018_idioms)]
 
+#![feature(doc_cfg)]
+
 mod color;
 mod square;
 mod types;
@@ -88,6 +90,7 @@ pub mod uci;
 pub mod san;
 
 #[cfg(feature = "variant")]
+#[doc(cfg(feature = "variant"))]
 pub mod variant;
 
 pub use crate::square::{ParseSquareError, File, Rank, Square};
